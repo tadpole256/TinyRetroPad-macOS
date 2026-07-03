@@ -34,6 +34,7 @@ final class EditorView: NSView, NSTextViewDelegate {
 
     var wordWrap = true { didSet { applyWordWrap() } }
     var statusBarVisible = true { didSet { doLayout(); statusLabel.isHidden = !statusBarVisible } }
+    var darkModeEnabled = false { didSet { applyColors() } }
 
     var currentFileURL: URL?
     var isDirty = false {
@@ -56,6 +57,7 @@ final class EditorView: NSView, NSTextViewDelegate {
         scrollView.borderType = .noBorder
         scrollView.autoresizingMask = [.width, .height]
         scrollView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.drawsBackground = false
         addSubview(scrollView)
 
         // Text view
@@ -71,7 +73,7 @@ final class EditorView: NSView, NSTextViewDelegate {
         textView.isAutomaticTextReplacementEnabled = false
         textView.usesFindBar = true
         textView.isIncrementalSearchingEnabled = true
-        textView.allowsDocumentBackgroundColorChange = true
+        textView.drawsBackground = true
         textView.translatesAutoresizingMaskIntoConstraints = false
         textView.textContainer?.widthTracksTextView = true
         textView.textContainer?.containerSize = NSSize(width: scrollView.contentSize.width, height: CGFloat.greatestFiniteMagnitude)
@@ -86,7 +88,42 @@ final class EditorView: NSView, NSTextViewDelegate {
         statusLabel.lineBreakMode = .byTruncatingTail
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
         addSubview(statusLabel)
+
+        applyColors()
     }
+
+    // MARK: - Dark / Light Mode
+
+    @objc func applyColors() {
+        let isDark = darkModeEnabled || effectiveAppearance().isDark
+
+        if isDark {
+            textView.backgroundColor = NSColor(red: 0.12, green: 0.12, blue: 0.14, alpha: 1.0)
+            textView.textColor = NSColor(red: 0.95, green: 0.95, blue: 0.95, alpha: 1.0)
+            textView.insertionPointColor = .white
+        } else {
+            textView.backgroundColor = .white
+            textView.textColor = .black
+            textView.insertionPointColor = .black
+        }
+
+        // Ensure the text view reflects changes immediately
+        textView.needsDisplay = true
+    }
+
+    @objc func toggleDarkMode() {
+        darkModeEnabled.toggle()
+        if let mi = NSApp.mainMenu?.item(withTitle: "View")?.submenu?.item(withTitle: "Dark Mode") {
+            mi.state = darkModeEnabled ? .on : .off
+        }
+    }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        applyColors()
+    }
+
+    // MARK: - Layout
 
     override func updateConstraints() {
         super.updateConstraints()
@@ -187,9 +224,9 @@ final class EditorView: NSView, NSTextViewDelegate {
         alert.addButton(withTitle: "Cancel")
         alert.alertStyle = .warning
         switch alert.runModal() {
-        case .alertFirstButtonReturn: return saveDocument()  // Save
-        case .alertSecondButtonReturn: return true           // Don't Save
-        default: return false                                 // Cancel
+        case .alertFirstButtonReturn: return saveDocument()
+        case .alertSecondButtonReturn: return true
+        default: return false
         }
     }
 
@@ -291,6 +328,20 @@ final class EditorView: NSView, NSTextViewDelegate {
     }
 }
 
+// MARK: - NSAppearance helper
+
+extension NSAppearance {
+    var isDark: Bool {
+        return bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+    }
+}
+
+extension NSView {
+    func effectiveAppearance() -> NSAppearance {
+        return effectiveAppearance
+    }
+}
+
 // ─── Window Controller ────────────────────────────────────────────────
 
 final class EditorWindowController: NSWindowController, NSWindowDelegate {
@@ -336,7 +387,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
 
         // App
         let appMenu = NSMenu()
-        appMenu.addItem(withTitle: "About TinyRetroPad", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        appMenu.addItem(withTitle: "About TinyRetroPad", action: #selector(showAbout), keyEquivalent: "")
         appMenu.addItem(.separator())
         appMenu.addItem(withTitle: "Quit TinyRetroPad", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         let appItem = NSMenuItem(); appItem.submenu = appMenu; main.addItem(appItem)
@@ -366,7 +417,6 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
         editMenu.addItem(.separator())
         editMenu.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
         editMenu.addItem(.separator())
-        // Find submenu
         let findItem = editMenu.addItem(withTitle: "Find", action: nil, keyEquivalent: "")
         let findSub = NSMenu()
         findSub.addItem(withTitle: "Find...", action: #selector(NSTextView.performFindPanelAction(_:)), keyEquivalent: "f")
@@ -386,7 +436,6 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
         let formatMenu = NSMenu(title: "Format")
         let wrapItem = formatMenu.addItem(withTitle: "Word Wrap", action: #selector(EditorView.toggleWordWrap), keyEquivalent: "")
         wrapItem.state = .on
-        // Font submenu
         let fontItem = formatMenu.addItem(withTitle: "Font", action: nil, keyEquivalent: "")
         let fontSub = NSMenu()
         fontSub.addItem(withTitle: "Show Fonts", action: #selector(EditorView.showFontPanel), keyEquivalent: "t")
@@ -397,6 +446,9 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
 
         // View
         let viewMenu = NSMenu(title: "View")
+        let dmItem = viewMenu.addItem(withTitle: "Dark Mode", action: #selector(EditorView.toggleDarkMode), keyEquivalent: "d")
+        dmItem.keyEquivalentModifierMask = [.command, .shift]
+        dmItem.state = .off
         let sbItem = viewMenu.addItem(withTitle: "Status Bar", action: #selector(EditorView.toggleStatusBar), keyEquivalent: "/")
         sbItem.state = .on
         let viewItem = NSMenuItem(); viewItem.submenu = viewMenu; main.addItem(viewItem)
@@ -415,12 +467,38 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
         let helpItem = NSMenuItem(); helpItem.submenu = helpMenu; main.addItem(helpItem)
 
         NSApp.mainMenu = main
-        // Auto-enable items (Undo/Redo/Cut/Copy/Paste/etc.)
         NSApp.mainMenu?.autoenablesItems = true
     }
 
+    // MARK: - About
+
+    @objc func showAbout() {
+        let alert = NSAlert()
+        alert.messageText = "TinyRetroPad"
+        alert.alertStyle = .informational
+
+        let info = """
+        Version 1.0 — macOS Native Port
+
+        A minimalist Notepad-style text editor.
+        Built with Swift + AppKit using NSTextView.
+
+        Original Windows version by Plummer's Software, Ltd.
+        Based on Dave's Tiny Editor (DTE) by Matt Power
+        and tiny.asm / HelloAssembly by Dave Plummer.
+
+        macOS port by Mary Hermes for Anthony.
+        Licensed under Apache 2.0.
+
+        github.com/tadpole256/TinyRetroPad-macOS
+        """
+        alert.informativeText = info
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
+    }
+
     @objc func openHelp() {
-        NSWorkspace.shared.open(URL(string: "https://github.com/PlummersSoftwareLLC/TinyRetroPad")!)
+        NSWorkspace.shared.open(URL(string: "https://github.com/tadpole256/TinyRetroPad-macOS")!)
     }
 
     // MARK: - Window close with dirty check
