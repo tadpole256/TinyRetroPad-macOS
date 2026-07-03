@@ -34,7 +34,7 @@ final class EditorView: NSView, NSTextViewDelegate {
 
     var wordWrap = true { didSet { applyWordWrap() } }
     var statusBarVisible = true { didSet { doLayout(); statusLabel.isHidden = !statusBarVisible } }
-    var darkModeEnabled = false { didSet { applyColors() } }
+    var lightModeForced = false { didSet { applyAppearance() } }
 
     var currentFileURL: URL?
     var isDirty = false {
@@ -90,38 +90,27 @@ final class EditorView: NSView, NSTextViewDelegate {
         addSubview(statusLabel)
     }
 
-    override func viewDidMoveToWindow() {
-        super.viewDidMoveToWindow()
-        applyColors()
-    }
-
     // MARK: - Dark / Light Mode
 
-    @objc func applyColors() {
-        if darkModeEnabled {
-            // Forced dark mode
-            textView.backgroundColor = NSColor(red: 0.12, green: 0.12, blue: 0.14, alpha: 1.0)
-            textView.textColor = NSColor(red: 0.95, green: 0.95, blue: 0.95, alpha: 1.0)
-            textView.insertionPointColor = .white
+    @objc func applyAppearance() {
+        guard let window = window else { return }
+        if lightModeForced {
+            window.appearance = NSAppearance(named: .aqua)
         } else {
-            // Use system semantic colors that auto-adapt to appearance
-            textView.backgroundColor = .textBackgroundColor
-            textView.textColor = .textColor
-            textView.insertionPointColor = .textColor
-        }
-        textView.needsDisplay = true
-    }
-
-    @objc func toggleDarkMode() {
-        darkModeEnabled.toggle()
-        if let mi = NSApp.mainMenu?.item(withTitle: "View")?.submenu?.item(withTitle: "Dark Mode") {
-            mi.state = darkModeEnabled ? .on : .off
+            window.appearance = nil  // Follow system
         }
     }
 
-    override func viewDidChangeEffectiveAppearance() {
-        super.viewDidChangeEffectiveAppearance()
-        applyColors()
+    @objc func toggleLightMode() {
+        lightModeForced.toggle()
+        if let mi = NSApp.mainMenu?.item(withTitle: "View")?.submenu?.item(withTitle: "Light Mode") {
+            mi.state = lightModeForced ? .on : .off
+        }
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        applyAppearance()
     }
 
     // MARK: - Layout
@@ -433,9 +422,9 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
 
         // View
         let viewMenu = NSMenu(title: "View")
-        let dmItem = viewMenu.addItem(withTitle: "Dark Mode", action: #selector(EditorView.toggleDarkMode), keyEquivalent: "d")
-        dmItem.keyEquivalentModifierMask = [.command, .shift]
-        dmItem.state = .off
+        let lmItem = viewMenu.addItem(withTitle: "Light Mode", action: #selector(EditorView.toggleLightMode), keyEquivalent: "L")
+        lmItem.keyEquivalentModifierMask = [.command, .shift]
+        lmItem.state = .off
         let sbItem = viewMenu.addItem(withTitle: "Status Bar", action: #selector(EditorView.toggleStatusBar), keyEquivalent: "/")
         sbItem.state = .on
         let viewItem = NSMenuItem(); viewItem.submenu = viewMenu; main.addItem(viewItem)
@@ -474,6 +463,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
         Based on Dave's Tiny Editor (DTE) by Matt Power
         and tiny.asm / HelloAssembly by Dave Plummer.
 
+        macOS port by Anthony.
         Licensed under Apache 2.0.
 
         github.com/tadpole256/TinyRetroPad-macOS
