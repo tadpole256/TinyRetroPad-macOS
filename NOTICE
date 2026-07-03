@@ -1,0 +1,21 @@
+TinyRetroPad for macOS
+Copyright 2026 Anthony
+
+This product includes software developed by:
+
+  - Plummer's Software, Ltd. (TinyRetroPad)
+    https://github.com/PlummersSoftwareLLC/TinyRetroPad
+    Copyright 2026 Plummer's Software, Ltd.
+
+  - Matthew M. Power (Dave's Tiny Editor / DTE)
+    https://github.com/PlummersSoftwareLLC/TinyRetroPad
+    Copyright (c) 2026 Matthew M. Power
+
+  - Dave Plummer (tiny.asm / HelloAssembly)
+    https://github.com/PlummersSoftwareLLC/HelloAssembly
+    Copyright (c) Dave Plummer
+
+All original components are licensed under the Apache License, Version 2.0.
+The macOS port is a derivative work containing new Swift/AppKit code that
+replaces the original x86 assembly/Win32 implementation while preserving
+the same feature set and user experience.

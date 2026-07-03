@@ -1,0 +1,17 @@
+# Build artifacts
+build/
+
+# macOS junk
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Icon
+Icon
+._*
+
+# Xcode (not used, but just in case)
+*.xcodeproj
+*.xcworkspace
+xcuserdata/
+DerivedData/
