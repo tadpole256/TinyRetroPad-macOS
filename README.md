@@ -87,7 +87,7 @@ TinyRetroPad itself is built on:
 - **[Dave's Tiny Editor (DTE)](https://github.com/PlummersSoftwareLLC/TinyRetroPad)** — Copyright (c) 2026 Matthew M. Power. The sub-1KB Win32 RichEdit editor that TinyRetroPad extends with full Notepad-style menus and dialogs.
 - **[tiny.asm / HelloAssembly](https://github.com/PlummersSoftwareLLC/HelloAssembly)** — Copyright (c) [Dave Plummer](https://github.com/davepl). The original x86 assembly foundation that started it all.
 
-**macOS port** — Built by Mary Hermes for [Anthony](https://github.com/tadpole256). All original code in this port is also licensed under Apache 2.0.
+**macOS port** by [Anthony](https://github.com/tadpole256). All original code is licensed under Apache 2.0.
 
 See [NOTICE](NOTICE) for full attribution details.
 

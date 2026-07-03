@@ -88,7 +88,10 @@ final class EditorView: NSView, NSTextViewDelegate {
         statusLabel.lineBreakMode = .byTruncatingTail
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
         addSubview(statusLabel)
+    }
 
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
         applyColors()
     }
 
@@ -487,7 +490,6 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
         Based on Dave's Tiny Editor (DTE) by Matt Power
         and tiny.asm / HelloAssembly by Dave Plummer.
 
-        macOS port by Mary Hermes for Anthony.
         Licensed under Apache 2.0.
 
         github.com/tadpole256/TinyRetroPad-macOS
