@@ -98,19 +98,17 @@ final class EditorView: NSView, NSTextViewDelegate {
     // MARK: - Dark / Light Mode
 
     @objc func applyColors() {
-        let isDark = darkModeEnabled || effectiveAppearance().isDark
-
-        if isDark {
+        if darkModeEnabled {
+            // Forced dark mode
             textView.backgroundColor = NSColor(red: 0.12, green: 0.12, blue: 0.14, alpha: 1.0)
             textView.textColor = NSColor(red: 0.95, green: 0.95, blue: 0.95, alpha: 1.0)
             textView.insertionPointColor = .white
         } else {
-            textView.backgroundColor = .white
-            textView.textColor = .black
-            textView.insertionPointColor = .black
+            // Use system semantic colors that auto-adapt to appearance
+            textView.backgroundColor = .textBackgroundColor
+            textView.textColor = .textColor
+            textView.insertionPointColor = .textColor
         }
-
-        // Ensure the text view reflects changes immediately
         textView.needsDisplay = true
     }
 
@@ -328,20 +326,6 @@ final class EditorView: NSView, NSTextViewDelegate {
     @objc func changeFont(_ sender: Any?) {
         let new = NSFontManager.shared.convert(textView.font ?? NSFont.monospacedSystemFont(ofSize: 13, weight: .regular))
         textView.font = new
-    }
-}
-
-// MARK: - NSAppearance helper
-
-extension NSAppearance {
-    var isDark: Bool {
-        return bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-    }
-}
-
-extension NSView {
-    func effectiveAppearance() -> NSAppearance {
-        return effectiveAppearance
     }
 }
 
