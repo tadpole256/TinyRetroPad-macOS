@@ -1,103 +1,117 @@
 #!/usr/bin/env python3
-"""Generate a Notepad-style app icon for TinyRetroPad."""
+"""Generate a Windows 2000 Notepad-style app icon for TinyRetroPad.
 
-import struct, zlib, os, sys
+Classic look: a white page with a dog-eared (folded) top-right corner
+and a few horizontal ruled lines, rendered at high resolution and
+downsampled for crisp results at every macOS icon size.
+"""
+
+import math
+import os
+import sys
+
+from PIL import Image, ImageDraw, ImageFilter
 
 ICONSET_DIR = sys.argv[1] if len(sys.argv) > 1 else "/tmp/AppIcon.iconset"
 os.makedirs(ICONSET_DIR, exist_ok=True)
 
-def png_chunk(ctype, data):
-    c = ctype + data
-    return struct.pack('>I', len(data)) + c + struct.pack('>I', zlib.crc32(c) & 0xffffffff)
+MASTER = 1024
 
-def rgba(r, g, b, a=255):
-    return bytes([r, g, b, a])
 
 def draw_notepad(size):
-    """Draw a classic Notepad icon: blue header, white body with lines, spiral left edge."""
-    pixels = bytearray()
-    header_h = int(size * 0.22)  # Blue title bar height
-    spiral_w = int(size * 0.10)  # Left spiral binding width
-    
-    # Colors (classic Windows Notepad)
-    title_blue = (0, 60, 160)       # Deep blue
-    title_light = (70, 130, 220)     # Lighter blue highlight
-    paper = (255, 255, 255)          # White
-    page_bg = (250, 251, 252)        # Slightly off-white
-    line_gray = (210, 218, 230)      # Faint ruled lines
-    spiral_dark = (140, 150, 165)    # Dark spiral ring
-    spiral_light = (180, 188, 200)   # Light spiral ring
-    shadow = (0, 0, 0, 30)          # Subtle page shadow
-    border = (180, 185, 195)         # Page border
-    
-    for y in range(size):
-        pixels.extend(b'\x00')  # filter none
-        
-        for x in range(size):
-            # Shadow (offset right and down)
-            if x > size - 4 or y > size - 4:
-                pixels.extend(rgba(0, 0, 0, 0))
-                continue
-            
-            # Spiral binding area (left edge)
-            if x < spiral_w:
-                ring = y % (spiral_w + 2)
-                if ring < spiral_w // 3:
-                    pixels.extend(rgba(*spiral_dark))
-                elif ring < spiral_w * 2 // 3:
-                    pixels.extend(rgba(*spiral_light))
-                else:
-                    pixels.extend(rgba(*spiral_dark))
-                continue
-            
-            # Title bar (blue header)
-            if y < header_h:
-                if y < 3:
-                    pixels.extend(rgba(*title_light))  # Top highlight
-                elif y > header_h - 3:
-                    pixels.extend(rgba(0, 40, 120))     # Bottom edge
-                else:
-                    # Subtle gradient in title bar
-                    t = (y - 3) / (header_h - 6)
-                    r = int(title_blue[0] + (title_light[0] - title_blue[0]) * t * 0.4)
-                    g = int(title_blue[1] + (title_light[1] - title_blue[1]) * t * 0.4)
-                    b = int(title_blue[2] + (title_light[2] - title_blue[2]) * t * 0.4)
-                    pixels.extend(rgba(r, g, b))
-                continue
-            
-            # Page body
-            local_y = y - header_h
-            page_h = size - header_h
-            
-            # Page border
-            if x == spiral_w or x == size - 5 or y == header_h or y == size - 5:
-                pixels.extend(rgba(*border))
-            # Ruled lines every ~12px
-            elif local_y > 0 and local_y % max(4, size // 48) == 0:
-                pixels.extend(rgba(*line_gray))
-            else:
-                pixels.extend(rgba(*page_bg))
-    
-    return bytes(pixels)
+    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+
+    # Page bounds
+    left = size * 0.20
+    top = size * 0.11
+    right = size * 0.82
+    bottom = size * 0.91
+    fold = (right - left) * 0.24
+
+    page_white = (255, 255, 255, 255)
+    page_border = (120, 128, 145, 255)
+    fold_fill = (222, 227, 234, 255)
+    fold_crease = (168, 176, 190, 255)
+    line_color = (46, 108, 196, 255)
+    margin_color = (214, 90, 100, 200)
+
+    border_w = max(2, round(size * 0.006))
+
+    # --- Drop shadow ---
+    shadow_layer = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    sd = ImageDraw.Draw(shadow_layer)
+    page_poly = [
+        (left, top),
+        (right - fold, top),
+        (right, top + fold),
+        (right, bottom),
+        (left, bottom),
+    ]
+    shadow_offset = size * 0.018
+    shadow_poly = [(x + shadow_offset, y + shadow_offset * 1.2) for x, y in page_poly]
+    sd.polygon(shadow_poly, fill=(20, 20, 30, 90))
+    shadow_layer = shadow_layer.filter(ImageFilter.GaussianBlur(radius=size * 0.02))
+    img = Image.alpha_composite(img, shadow_layer)
+
+    draw = ImageDraw.Draw(img)
+
+    # --- Page body (with dog-eared corner cut) ---
+    draw.polygon(page_poly, fill=page_white, outline=page_border, width=border_w)
+
+    # --- Folded corner flap ---
+    flap_poly = [
+        (right - fold, top),
+        (right, top),
+        (right, top + fold),
+    ]
+    draw.polygon(flap_poly, fill=fold_fill, outline=page_border, width=border_w)
+    draw.line([(right - fold, top), (right, top + fold)], fill=fold_crease, width=max(1, round(size * 0.004)))
+
+    # --- Left ruled margin line ---
+    margin_x = left + (right - left) * 0.16
+    draw.line(
+        [(margin_x, top + fold * 0.55), (margin_x, bottom - (bottom - top) * 0.05)],
+        fill=margin_color,
+        width=max(1, round(size * 0.006)),
+    )
+
+    # --- Ruled horizontal lines ---
+    line_left = margin_x + (right - left) * 0.05
+    line_right = right - (right - left) * 0.08
+    first_y = top + fold * 1.35
+    last_y = bottom - (bottom - top) * 0.08
+    line_w = max(1, round(size * 0.008))
+    available = last_y - first_y
+    min_gap = max(line_w * 3.2, size * 0.045)
+    n_lines = max(3, min(9, int(available // min_gap) + 1))
+    for i in range(n_lines):
+        y = first_y + (available * i / (n_lines - 1) if n_lines > 1 else 0)
+        draw.line([(line_left, y), (line_right, y)], fill=line_color, width=line_w)
+
+    return img
+
 
 def create_all_sizes():
+    master = draw_notepad(MASTER)
+
     sizes = {
-        'icon_16x16.png': 16,       'icon_16x16@2x.png': 32,
-        'icon_32x32.png': 32,       'icon_32x32@2x.png': 64,
-        'icon_128x128.png': 128,    'icon_128x128@2x.png': 256,
-        'icon_256x256.png': 256,    'icon_256x256@2x.png': 512,
-        'icon_512x512.png': 512,    'icon_512x512@2x.png': 1024,
+        "icon_16x16.png": 16,
+        "icon_16x16@2x.png": 32,
+        "icon_32x32.png": 32,
+        "icon_32x32@2x.png": 64,
+        "icon_128x128.png": 128,
+        "icon_128x128@2x.png": 256,
+        "icon_256x256.png": 256,
+        "icon_256x256@2x.png": 512,
+        "icon_512x512.png": 512,
+        "icon_512x512@2x.png": 1024,
     }
-    
+
     for name, size in sizes.items():
-        raw = draw_notepad(size)
-        header = (b'\x89PNG\r\n\x1a\n'
-                  + png_chunk(b'IHDR', struct.pack('>IIBBBBB', size, size, 8, 6, 0, 0, 0))
-                  + png_chunk(b'IDAT', zlib.compress(raw))
-                  + png_chunk(b'IEND', b''))
-        path = os.path.join(ICONSET_DIR, name)
-        with open(path, 'wb') as f:
-            f.write(header)
+        resized = master.resize((size, size), Image.LANCZOS)
+        resized.save(os.path.join(ICONSET_DIR, name))
+
     print(f"  Generated {len(sizes)} icon sizes in {ICONSET_DIR}")
+
 
 create_all_sizes()
