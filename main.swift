@@ -74,7 +74,14 @@ final class EditorView: NSView, NSTextViewDelegate {
         textView.usesFindBar = true
         textView.isIncrementalSearchingEnabled = true
         textView.drawsBackground = true
-        textView.translatesAutoresizingMaskIntoConstraints = false
+        textView.backgroundColor = .textBackgroundColor
+        textView.textColor = .textColor
+        textView.insertionPointColor = .textColor
+        textView.minSize = NSSize(width: 0, height: 0)
+        textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        textView.isVerticallyResizable = true
+        textView.isHorizontallyResizable = false
+        textView.autoresizingMask = [.width]
         textView.textContainer?.widthTracksTextView = true
         textView.textContainer?.containerSize = NSSize(width: scrollView.contentSize.width, height: CGFloat.greatestFiniteMagnitude)
         scrollView.documentView = textView
@@ -463,12 +470,23 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
         Based on Dave's Tiny Editor (DTE) by Matt Power
         and tiny.asm / HelloAssembly by Dave Plummer.
 
-        macOS port by Anthony.
+        macOS port by Anthony McCloskey.
+
         Licensed under Apache 2.0.
 
         github.com/tadpole256/TinyRetroPad-macOS
         """
         alert.informativeText = info
+
+        let linkField = NSTextField(labelWithAttributedString: NSAttributedString(
+            string: "https://anthonymccloskey.com",
+            attributes: [.link: URL(string: "https://anthonymccloskey.com")!]
+        ))
+        linkField.isSelectable = true
+        linkField.allowsEditingTextAttributes = true
+        alert.accessoryView = linkField
+        linkField.sizeToFit()
+
         alert.addButton(withTitle: "OK")
         alert.runModal()
     }
